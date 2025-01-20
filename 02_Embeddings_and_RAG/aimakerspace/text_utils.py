@@ -1,5 +1,6 @@
 import os
 from typing import List
+import PyPDF2
 
 
 class TextFileLoader:
@@ -62,16 +63,50 @@ class CharacterTextSplitter:
         return chunks
 
 
-if __name__ == "__main__":
-    loader = TextFileLoader("data/KingLear.txt")
-    loader.load()
-    splitter = CharacterTextSplitter()
-    chunks = splitter.split_texts(loader.documents)
-    print(len(chunks))
-    print(chunks[0])
-    print("--------")
-    print(chunks[1])
-    print("--------")
-    print(chunks[-2])
-    print("--------")
-    print(chunks[-1])
+class PDFFileLoader:
+    def __init__(self, path: str):
+        self.documents = []
+        self.path = path
+
+    def load(self):
+        if os.path.isdir(self.path):
+            self.load_directory()
+        elif os.path.isfile(self.path) and self.path.endswith(".pdf"):
+            self.load_file()
+        else:
+            raise ValueError(
+                "Provided path is neither a valid directory nor a .pdf file."
+            )
+
+    def load_file(self):
+        with open(self.path, "rb") as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            self.documents.append(text)
+
+    def load_directory(self):
+        for root, _, files in os.walk(self.path):
+            for file in files:
+                if file.endswith(".pdf"):
+                    file_path = os.path.join(root, file)
+                    with open(file_path, "rb") as f:
+                        pdf_reader = PyPDF2.PdfReader(f)
+                        text = ""
+                        for page in pdf_reader.pages:
+                            text += page.extract_text() + "\n"
+                        self.documents.append(text)
+
+    def load_documents(self):
+        self.load()
+        return self.documents
+
+def get_file_loader(file_path: str):
+    """Factory function to return appropriate loader based on file extension"""
+    if file_path.lower().endswith('.pdf'):
+        return PDFFileLoader(file_path)
+    elif file_path.lower().endswith('.txt'):
+        return TextFileLoader(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {file_path}")
